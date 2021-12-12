@@ -1,30 +1,43 @@
 #include <omp.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
+#include <limits.h>
 
 #include "my_timers.h"
-//#include "../assets/image.h" // 2 073 600 pixels
-#include "../assets/test_image.h" // 2 048 pixels
 
-#define NBR_OF_ELEMENTS width * height
-//#define NBR_OF_ELEMENTS 100
-#define histogram_size 65535 + 1 // max for unsigned short
+//#define TEST
+#ifdef TEST
+
+#include "../assets/test_image.h" // 2 048 pixels
+#define NBR_OF_ELEMENTS 2048 // width * height in 64x32 test image.
+
+#else
+
+#define NBR_OF_ELEMENTS 2073600 // width * height in FullHD. Change for bigger images! 
+#include "../assets/image.h" // 2 073 600 pixels
+
+#endif
+
+
+#define histogram_size 255 * 3 + 1 // max color value
+
 
 static unsigned long histogram[histogram_size];
+static unsigned int mono_image[NBR_OF_ELEMENTS];
+static unsigned long i; // iterator
 
-unsigned long i; // iterator
-unsigned short mono_image[NBR_OF_ELEMENTS];
 
 void load_image()
 {
 	char pixel[3];
+	char * data = header_data;
 
-	for(i = 0; i < NBR_OF_ELEMENTS; ++i)
+	for(i = 0L; i < NBR_OF_ELEMENTS; ++i)
 	{
-		HEADER_PIXEL(header_data, pixel);
-		mono_image[i] = (unsigned short)pixel[0] + 
-					(unsigned short)pixel[1] + 
-					(unsigned short)pixel[2];
+		HEADER_PIXEL(data, pixel);
+		mono_image[i] = (uint8_t)pixel[0] + (uint8_t)pixel[1] + (uint8_t)pixel[2];
 	}
 }
 
@@ -32,9 +45,9 @@ void print_image()
 {
 	printf("Image printing:\n");
 
-	for (i = (unsigned long)0; i < NBR_OF_ELEMENTS; ++i)
+	for (i = 0L; i < NBR_OF_ELEMENTS; ++i)
 	{
-		printf("%hu, ", mono_image[i]);
+		printf("%u, ", mono_image[i]);
 	}
 
 	printf("\n");
@@ -49,10 +62,10 @@ void print_histogram()
 	}
 
 	printf("Histogram values:\n");
-
-	for (i = (unsigned long)0; i < histogram_size; ++i)
+	
+	for (i = 0L; i < histogram_size; ++i)
 	{
-		if( (unsigned long)0 != histogram[i] )
+		if( 0L != histogram[i] )
 		{
 			printf("v: %lu, a: %lu\n", i, histogram[i]);
 		}
@@ -76,7 +89,7 @@ int main()
 	}
 
 	stop_time();
-	// print_image();
+//	print_image();
 	print_histogram();
 	print_time("Elapsed:");
 }

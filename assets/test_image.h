@@ -3,7 +3,8 @@
 #define width 64
 #define height 32
 
-/*  Call this macro repeatedly.  After each use, the pixel data can be extracted  */
+/*  Call this macro repeatedly.  After each use, the pixel 
+data can be extracted  */
 
 #define HEADER_PIXEL(data,pixel) {\
 pixel[0] = (((data[0] - 33) << 2) | ((data[1] - 33) >> 4)); \
@@ -11,7 +12,7 @@ pixel[1] = ((((data[1] - 33) & 0xF) << 4) | ((data[2] - 33) >> 2)); \
 pixel[2] = ((((data[2] - 33) & 0x3) << 6) | ((data[3] - 33))); \
 data += 4; \
 }
-static char *header_data =
+static const char const *header_data =
 	"!!!!!1%!!!%\"!1!!$!U-*35G.$-U0D]_3%B)5&\"16F:786V>9W.D;'BI<7VN=H*S"
 	">X>X?XR\\A(^`B)3%BYC)CYO,DY[0EZ/3F:;7G:G:H*S>HZ_@IK+DJ;;FK+CIK[OL"
 	"LK[OM<'QN,3UNL;WO,GYO\\O\\PLW^Q-$!Q],$R=4&RM@(S=H*T-P-TM\\.U.$1UN,3"
