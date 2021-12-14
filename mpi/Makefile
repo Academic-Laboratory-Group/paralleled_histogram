@@ -4,6 +4,7 @@ RUN_PROG = mpiexec
 SRC_FILES = .\mpi.c .\my_timers.c
 LIB_PATH = "C:\Program Files (x86)\Microsoft SDKs\MPI\Include"
 COMPILE_FLAGS = -fopenmp -trigraphs -Wno-discarded-qualifiers -I$(LIB_PATH)
+RUN_FLAGS = -np 4
 
 all: clean build run 
 
@@ -14,4 +15,4 @@ clean:
 	del $(TARGET).exe
 
 run:
-	$(RUN_PROG) $(TARGET)
+	$(RUN_PROG) $(RUN_FLAGS) $(TARGET)
