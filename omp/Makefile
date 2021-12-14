@@ -1,7 +1,7 @@
 TARGET = omp
 GCC = gcc
 SRC_FILES = .\omp.c .\my_timers.c
-COMPILE_FLAGS = -fopenmp -trigraphs
+COMPILE_FLAGS = -fopenmp -trigraphs -Wno-discarded-qualifiers
 
 all: clean build run 
 
