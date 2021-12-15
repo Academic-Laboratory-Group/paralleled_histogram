@@ -6,7 +6,6 @@
 #include <limits.h>
 #include <string.h>
 
-#include "my_timers.h"
 
 //#define TEST
 #ifdef TEST
@@ -21,37 +20,34 @@
 
 #endif
 
-#define histogram_size 255 * 3 + 1 // max color value
+#define HISTOGRAM_SIZE 255 * 3 + 1 // max color value
 
-static unsigned long histogram[histogram_size];
-static unsigned int mono_image[NBR_OF_ELEMENTS];
-static unsigned long i; // iterator
 
-void load_image()
+void load_image(unsigned int * image_data)
 {
 	char pixel[3];
 	char *data = header_data;
 
-	for (i = 0L; i < NBR_OF_ELEMENTS; ++i)
+	for (unsigned long i = 0L; i < NBR_OF_ELEMENTS; ++i)
 	{
 		HEADER_PIXEL(data, pixel);
-		mono_image[i] = (uint8_t)pixel[0] + (uint8_t)pixel[1] + (uint8_t)pixel[2];
+		image_data[i] = (uint8_t)pixel[0] + (uint8_t)pixel[1] + (uint8_t)pixel[2];
 	}
 }
 
-void print_image()
+void print_image(unsigned int * image_data)
 {
 	printf("Image printing:\n");
 
-	for (i = 0L; i < NBR_OF_ELEMENTS; ++i)
+	for (unsigned long i = 0L; i < NBR_OF_ELEMENTS; ++i)
 	{
-		printf("%u, ", mono_image[i]);
+		printf("%u, ", image_data[i]);
 	}
 
 	printf("\n");
 }
 
-void print_histogram()
+void print_histogram(unsigned long * histogram)
 {
 	if (!histogram)
 	{
@@ -61,7 +57,7 @@ void print_histogram()
 
 	printf("Histogram values:\n");
 
-	for (i = 0L; i < histogram_size; ++i)
+	for (unsigned long i = 0L; i < HISTOGRAM_SIZE; ++i)
 	{
 		if (0L != histogram[i])
 		{
@@ -72,43 +68,71 @@ void print_histogram()
 	printf("\n");
 }
 
+
+static unsigned long histogram[HISTOGRAM_SIZE];
+static unsigned int mono_image[NBR_OF_ELEMENTS];
+
+
 int main(int argc, char **argv)
 {
-	int p, src, dest, rank;
-	int tag = 1;
-	char mes[50];
+	int my_rank;
+	int size;
+	int root = 0;
 
-	load_image(); // lets load our image
+	unsigned long * histogram;
+	unsigned long * sub_histogram;
+	unsigned int * image_data;
+	unsigned int * sub_image_data;
 
-	MPI_Status status;
 	MPI_Init(&argc, &argv);
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	MPI_Comm_size(MPI_COMM_WORLD, &p);
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	start_time();
-
-	if (rank != 0)
+	// Root operations
+	if (my_rank == root)
 	{
-		sprintf(mes, "Hello, this is process %d", rank);
-		dest = 0;
-		MPI_Send(mes, strlen(mes) + 1, MPI_CHAR, dest, tag, MPI_COMM_WORLD);
+		image_data = (unsigned int *) malloc(sizeof(unsigned int) * NBR_OF_ELEMENTS);
+		load_image(image_data); // lets load our image
 	}
-	if (rank == 0)
+
+	// Subdomain memory allocation and scattering data
+	int sub_data_length = NBR_OF_ELEMENTS / size;
+	sub_image_data = (unsigned int *) malloc(sizeof(unsigned int) * sub_data_length);
+
+	MPI_Scatter(image_data, sub_data_length, MPI_UNSIGNED,
+			sub_image_data, sub_data_length, MPI_UNSIGNED,
+			root, MPI_COMM_WORLD);
+
+	// Computing
+	sub_histogram = (unsigned long *) malloc(sizeof(unsigned long) * HISTOGRAM_SIZE);
+	histogram = (unsigned long *) malloc(sizeof(unsigned long) * HISTOGRAM_SIZE);
+
+	for (unsigned long i = 0; i < NBR_OF_ELEMENTS; ++i)
 	{
-		MPI_Recv(mes, 50, MPI_CHAR, MPI_ANY_SOURCE, tag, MPI_COMM_WORLD,
-				 &status);
-		printf("%s\n", mes);
+		++sub_histogram[sub_image_data[i]];
 	}
-	//for (i = 0; i < NBR_OF_ELEMENTS; ++i)
-	//{
-	//	++histogram[mono_image[i]];
-	//}
 
-	stop_time();
+	MPI_Reduce(&sub_histogram, &histogram, HISTOGRAM_SIZE, MPI_UNSIGNED_LONG,
+			MPI_SUM, root, MPI_COMM_WORLD);
 
+	// Gathering data
+	MPI_Gather(sub_image_data, sub_data_length, MPI_UNSIGNED,
+			image_data, sub_data_length, MPI_UNSIGNED,
+			root, MPI_COMM_WORLD);
+
+	// Print histogram in root
+	if (my_rank == root)
+	{
+		print_histogram(histogram);
+	}
+
+	// Cleaning in memory
+//	free(histogram);
+//	free(sub_histogram);
+//	free(image_data);
+//	free(sub_image_data);
+
+	// Finalizing
 	MPI_Finalize();
-
-	//	print_image();
-	print_time("Elapsed:");
-	print_histogram();
 }
+
