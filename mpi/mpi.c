@@ -68,9 +68,13 @@ void print_histogram(unsigned long * histogram)
 	printf("\n");
 }
 
-
-static unsigned long histogram[HISTOGRAM_SIZE];
-static unsigned int mono_image[NBR_OF_ELEMENTS];
+void clear_histogram(unsigned long * array)
+{
+	for (unsigned long i = 0L; i < HISTOGRAM_SIZE; ++i)
+	{
+		array[i] = 0;
+	}
+}
 
 
 int main(int argc, char **argv)
@@ -78,6 +82,7 @@ int main(int argc, char **argv)
 	int my_rank;
 	int size;
 	int root = 0;
+	int nbr_of_elements = NBR_OF_ELEMENTS;
 
 	unsigned long * histogram;
 	unsigned long * sub_histogram;
@@ -91,12 +96,18 @@ int main(int argc, char **argv)
 	// Root operations
 	if (my_rank == root)
 	{
-		image_data = (unsigned int *) malloc(sizeof(unsigned int) * NBR_OF_ELEMENTS);
+		printf("Root operations\n");
+		image_data = (unsigned int *) malloc(sizeof(unsigned int) * nbr_of_elements);
 		load_image(image_data); // lets load our image
+//		print_image(image_data);
 	}
 
+	// MPI_Bcast(&nbr_of_elements, 1, MPI_INT, root, MPI_COMM_WORLD);
+
 	// Subdomain memory allocation and scattering data
-	int sub_data_length = NBR_OF_ELEMENTS / size;
+	printf("Subdomain\n");
+
+	unsigned int sub_data_length = nbr_of_elements / size;
 	sub_image_data = (unsigned int *) malloc(sizeof(unsigned int) * sub_data_length);
 
 	MPI_Scatter(image_data, sub_data_length, MPI_UNSIGNED,
@@ -104,18 +115,25 @@ int main(int argc, char **argv)
 			root, MPI_COMM_WORLD);
 
 	// Computing
+	printf("Computing\n");
+
 	sub_histogram = (unsigned long *) malloc(sizeof(unsigned long) * HISTOGRAM_SIZE);
 	histogram = (unsigned long *) malloc(sizeof(unsigned long) * HISTOGRAM_SIZE);
+	clear_histogram(sub_histogram);
+	clear_histogram(histogram);
 
-	for (unsigned long i = 0; i < NBR_OF_ELEMENTS; ++i)
+	for (unsigned long i = 0; i < sub_data_length; ++i)
 	{
 		++sub_histogram[sub_image_data[i]];
 	}
+	printf("Print rank: %d, subhistogram 544: %lu\n", my_rank, sub_histogram[544]);
 
-	MPI_Reduce(&sub_histogram, &histogram, HISTOGRAM_SIZE, MPI_UNSIGNED_LONG,
+	MPI_Reduce(sub_histogram, histogram, HISTOGRAM_SIZE, MPI_UNSIGNED_LONG,
 			MPI_SUM, root, MPI_COMM_WORLD);
 
 	// Gathering data
+	printf("Gathering\n");
+
 	MPI_Gather(sub_image_data, sub_data_length, MPI_UNSIGNED,
 			image_data, sub_data_length, MPI_UNSIGNED,
 			root, MPI_COMM_WORLD);
@@ -123,16 +141,13 @@ int main(int argc, char **argv)
 	// Print histogram in root
 	if (my_rank == root)
 	{
+		printf("Print histogram 655: %lu\n", histogram[544]);
 		print_histogram(histogram);
 	}
 
-	// Cleaning in memory
-//	free(histogram);
-//	free(sub_histogram);
-//	free(image_data);
-//	free(sub_image_data);
-
 	// Finalizing
+	printf("Finalizing\n");
+
 	MPI_Finalize();
 }
 
