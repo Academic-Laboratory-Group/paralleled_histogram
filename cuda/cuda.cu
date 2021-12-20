@@ -98,8 +98,8 @@ __global__ void calculations(unsigned int * image_data, unsigned long * histogra
 	int j;
 	int N = blockDim.x * gridDim.x;
 	int pixels_per_thread = NBR_OF_ELEMENTS / (N - 1);
-	int last_thread_pixels = NBR_OF_ELEMENTS - pixels_per_thread * (N - 1);
-
+	int last_thread_pixels = NBR_OF_ELEMENTS % (N - 1);
+/*
 __shared__ unsigned int tmp_image_data[NBR_OF_ELEMENTS];
 __shared__ unsigned long tmp_histogram[HISTOGRAM_SIZE];
 
@@ -120,30 +120,32 @@ __shared__ unsigned long tmp_histogram[HISTOGRAM_SIZE];
 		tmp_histogram[j] = 0;
 	}
 
-	__syncthreads();
+	__syncthreads();*/
 
 	// Calculate
 	if(index < N - 1)
 	{
 		for(j = 0; j < pixels_per_thread; ++j)
 		{
-			++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]];
+//			++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]];
+			++histogram[image_data[threadIdx.x * pixels_per_thread + j]];
 		}
 	}
 	else
 	{
 		for(j = 0; j < last_thread_pixels; ++j)
 		{
-			++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]];
+//			++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]];
+			++histogram[image_data[threadIdx.x * pixels_per_thread + j]];
 		}
 	}
 
-	__syncthreads();
+/*	__syncthreads();
 
 	for(j = 0; j < HISTOGRAM_SIZE; ++j)
 	{
 		histogram[j] += tmp_histogram[j];
-	}
+	}*/
 }
 
 
@@ -225,11 +227,13 @@ int main(void)
 	if(are_histograms_equal(histogram, histogram_result) != 0)
 	{
 		printf("Histograms are not equal!\n");
+		print_histogram(histogram);
+		//print_histogram(histogram_result);
 	}
 	else
 	{
 		printf("Success!\n");
-		print_histogram(histogram);
+		//print_histogram(histogram);
 		//print_histogram(histogram_result);
 	}
 
