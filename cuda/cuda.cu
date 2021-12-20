@@ -19,7 +19,7 @@
 
 #endif
 
-#define HISTOGRAM_SIZE 255 * 3 + 1 // max color value
+#define HISTOGRAM_SIZE (255 * 3 + 1) // max color value
 
 
 void load_image(unsigned int * image_data)
@@ -80,16 +80,16 @@ void clear_histogram(unsigned long * histogram)
 	}
 }
 
-bool are_histograms_equal(unsigned long * array, unsigned long * array2)
+int are_histograms_equal(unsigned long * array, unsigned long * array2)
 {
 	for (unsigned int i = 0u; i < HISTOGRAM_SIZE; ++i)
 	{
 		if(array[i] != array2[i])
 		{
-			return false;
+			return -1;
 		}
 	}
-	return true;
+	return 0;
 }
 
 __global__ void calculations(unsigned int * image_data, unsigned long * histogram)
@@ -182,9 +182,9 @@ int main(void)
 	image_data = (unsigned int *)malloc(size_image);
 	load_image(image_data);
 	histogram = (unsigned long *)malloc(size_histogram);
-	//clear_histogram(histogram);
+	clear_histogram(histogram);
 	histogram_result = (unsigned long *)malloc(size_histogram);
-	//clear_histogram(histogram_result);
+	clear_histogram(histogram_result);
 
 	// Copy data to device
 	printf("Copy data to device\n");
@@ -201,7 +201,7 @@ int main(void)
 
 	// Checkup
 	printf("Checkup\n");
-/*	int i, j;
+	int i, j;
 	for(i = 0; i < N; ++i)
 	{
 		if(i < N - 1)
@@ -222,14 +222,15 @@ int main(void)
 
 	// Checking correctness
 	printf("Checking correctness\n");
-	if(are_histograms_equal(histogram, histogram_result))
+	if(are_histograms_equal(histogram, histogram_result) != 0)
 	{
-		printf("Histograms are not equal!");
+		printf("Histograms are not equal!\n");
 	}
-	else*/
+	else
 	{
-		printf("Success!");
+		printf("Success!\n");
 		print_histogram(histogram);
+		//print_histogram(histogram_result);
 	}
 
 	// Cleanup
