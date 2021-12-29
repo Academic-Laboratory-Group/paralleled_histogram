@@ -5,6 +5,8 @@
 #include <limits.h>
 #include <string.h>
 
+// CUDA Runtime
+#include <cuda_runtime.h>
 
 #define TEST
 #ifdef TEST
@@ -92,30 +94,30 @@ int are_histograms_equal(unsigned long * array, unsigned long * array2)
 	return 0;
 }
 
-__global__ void calculations(unsigned int * image_data, unsigned long * histogram)
+__global__ void calculations(unsigned int * image_data, unsigned long * histogram, unsigned long* i)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
-	int j;
 	int N = blockDim.x * gridDim.x;
 	int pixels_per_thread = NBR_OF_ELEMENTS / (N - 1);
 	int last_thread_pixels = NBR_OF_ELEMENTS % (N - 1);
-/*
+	/*
 __shared__ unsigned int tmp_image_data[NBR_OF_ELEMENTS];
 __shared__ unsigned long tmp_histogram[HISTOGRAM_SIZE];
 
 	// Copy to tmp
-	for(j = 0; j < pixels_per_thread * blockDim.x; ++j)
+	for(int j = 0; j < pixels_per_thread * blockDim.x; ++j) // j < pixels per block
 	{
-		if(blockIdx.x * blockDim.x * pixels_per_thread + j < NBR_OF_ELEMENTS)
+		if( index * pixels_per_thread + j < NBR_OF_ELEMENTS) // pixel's index in the image < pixels amount at all 
 		{
-			tmp_image_data[j] = image_data[blockIdx.x * blockDim.x * pixels_per_thread + j];
+			tmp_image_data[j] = image_data[index * pixels_per_thread + j]; // pixel's index in the image
 		}
 		else
 		{
 			tmp_image_data[j] = 0;
 		}
 	}
-	for(j = 0; j < HISTOGRAM_SIZE; ++j)
+	// Clear tmp histogram
+	for(int j = 0; j < HISTOGRAM_SIZE; ++j) 
 	{
 		tmp_histogram[j] = 0;
 	}
@@ -125,38 +127,44 @@ __shared__ unsigned long tmp_histogram[HISTOGRAM_SIZE];
 	// Calculate
 	if(index < N - 1)
 	{
-		for(j = 0; j < pixels_per_thread; ++j)
+		for(int j = 0; j < pixels_per_thread; ++j)
 		{
-//			++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]];
-			++histogram[image_data[threadIdx.x * pixels_per_thread + j]];
+			//++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]]; // pixel's index in block
+			++histogram[image_data[index * pixels_per_thread + j]];
+			//if (image_data[threadIdx.x * pixels_per_thread + j] == 700)
+			//	++(*i);
 		}
 	}
 	else
 	{
-		for(j = 0; j < last_thread_pixels; ++j)
+		for(int j = 0; j < last_thread_pixels; ++j)
 		{
-//			++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]];
-			++histogram[image_data[threadIdx.x * pixels_per_thread + j]];
+			//++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]]; // pixel's index in block
+			++histogram[image_data[index * pixels_per_thread + j]];
+			//if (image_data[threadIdx.x * pixels_per_thread + j] == 700)
+			//	++(*i);
 		}
 	}
 
-/*	__syncthreads();
+	/*__syncthreads();
 
-	for(j = 0; j < HISTOGRAM_SIZE; ++j)
+	// Copy shared data to device data
+	for(int j = 0; j < HISTOGRAM_SIZE; ++j)
 	{
 		histogram[j] += tmp_histogram[j];
 	}*/
+	*i = N;
 }
 
 
-int main(void)
+int main(int argc, char** argv)
 {
 	int nBlk = 512;
 	int nThx = 512;
 	int N = nBlk * nThx;
 
-	unsigned int size_image = NBR_OF_ELEMENTS * sizeof(unsigned int);
-	unsigned long size_histogram = HISTOGRAM_SIZE * sizeof(unsigned long);
+	size_t size_image = NBR_OF_ELEMENTS * sizeof(unsigned int);
+	size_t size_histogram = HISTOGRAM_SIZE * sizeof(unsigned long);
 
 	int pixels_per_thread = NBR_OF_ELEMENTS / (N - 1);
 	while(pixels_per_thread < 8)
@@ -173,11 +181,14 @@ int main(void)
 
 	unsigned long * histogram, * d_histogram, * histogram_result;
 	unsigned int * image_data, * d_image_data;
+	unsigned long *x = 0UL, *d_x;
 
 	// Alloc space for device copies od input and output data
 	printf("Allocation of space for device copies\n");
 	cudaMalloc((void **)&d_image_data, size_image);
 	cudaMalloc((void **)&d_histogram, size_histogram);
+	cudaMalloc((void **)&d_x, sizeof(x));
+
 
 	// Alloc space for host copies of input, output data and setup input values
 	printf("Allocation of space for host copies\n");
@@ -188,34 +199,39 @@ int main(void)
 	histogram_result = (unsigned long *)malloc(size_histogram);
 	clear_histogram(histogram_result);
 
+	x = (unsigned long*)malloc(sizeof(x));
+	*x = 0UL;
 	// Copy data to device
 	printf("Copy data to device\n");
 	cudaMemcpy(d_image_data, image_data, size_image, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_histogram, histogram, size_histogram, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_x, x, sizeof(x), cudaMemcpyHostToDevice);
 
 	// Lunch calculations() kernel on GPU with N threads
 	printf("Calculations\n");
-	calculations<<<nBlk, nThx>>>(d_image_data, d_histogram);
+	calculations<<<nBlk, nThx>>>(d_image_data, d_histogram, d_x);
 
 	// Copy result back to host
 	printf("Copy result to host\n");
 	cudaMemcpy(histogram, d_histogram, size_histogram, cudaMemcpyDeviceToHost);
+	cudaMemcpy(x, d_x, sizeof(x), cudaMemcpyDeviceToHost);
+	printf("x: %lu\n", *x);
 
 	// Checkup
 	printf("Checkup\n");
-	int i, j;
+	int i;
 	for(i = 0; i < N; ++i)
 	{
 		if(i < N - 1)
 		{
-			for(j = 0; j < pixels_per_thread; ++j)
+			for(int j = 0; j < pixels_per_thread; ++j)
 			{
 				++histogram_result[image_data[i * pixels_per_thread + j]]; // thread idx * pixels per thread + pixel idx per thread
 			}
 		}
 		else
 		{
-			for(j = 0; j < last_thread_pixels; ++j)
+			for(int j = 0; j < last_thread_pixels; ++j)
 			{
 				++histogram_result[image_data[i * pixels_per_thread + j]]; // thread idx * pixels per thread + pixel idx per thread
 			}
@@ -227,7 +243,7 @@ int main(void)
 	if(are_histograms_equal(histogram, histogram_result) != 0)
 	{
 		printf("Histograms are not equal!\n");
-		print_histogram(histogram);
+		//print_histogram(histogram);
 		//print_histogram(histogram_result);
 	}
 	else
@@ -242,9 +258,13 @@ int main(void)
 	free(histogram);
 	free(image_data);
 	free(histogram_result);
+	free(x);
 	cudaFree(d_histogram);
 	cudaFree(d_image_data);
+	cudaFree(d_x);
 
+
+	//system("pause");
 	return 0;
 }
 
