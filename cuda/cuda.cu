@@ -99,59 +99,23 @@ __global__ void calculations(unsigned int *image_data, unsigned long *histogram,
 	int N = blockDim.x * gridDim.x;
 	int pixels_per_thread = NBR_OF_ELEMENTS / (N - 1);
 	int last_thread_pixels = NBR_OF_ELEMENTS % (N - 1);
-	/*
-__shared__ unsigned int tmp_image_data[NBR_OF_ELEMENTS];
-__shared__ unsigned long tmp_histogram[HISTOGRAM_SIZE];
-
-	// Copy to tmp
-	for(int j = 0; j < pixels_per_thread * blockDim.x; ++j) // j < pixels per block
-	{
-		if( index * pixels_per_thread + j < NBR_OF_ELEMENTS) // pixel's index in the image < pixels amount at all 
-		{
-			tmp_image_data[j] = image_data[index * pixels_per_thread + j]; // pixel's index in the image
-		}
-		else
-		{
-			tmp_image_data[j] = 0;
-		}
-	}
-	// Clear tmp histogram
-	for(int j = 0; j < HISTOGRAM_SIZE; ++j) 
-	{
-		tmp_histogram[j] = 0;
-	}
-
-	__syncthreads();*/
 
 	// Calculate
 	if (index < N - 1)
 	{
 		for (int j = 0; j < pixels_per_thread; ++j)
 		{
-			//++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]]; // pixel's index in block
-			++histogram[image_data[index * pixels_per_thread + j]];
-			//if (image_data[threadIdx.x * pixels_per_thread + j] == 700)
-			//	++(*i);
+			atomicAdd(&(histogram[image_data[index * pixels_per_thread + j]]), 1);
 		}
 	}
 	else
 	{
 		for (int j = 0; j < last_thread_pixels; ++j)
 		{
-			//++tmp_histogram[tmp_image_data[threadIdx.x * pixels_per_thread + j]]; // pixel's index in block
-			++histogram[image_data[index * pixels_per_thread + j]];
-			//if (image_data[threadIdx.x * pixels_per_thread + j] == 700)
-			//	++(*i);
+			atomicAdd(&(histogram[image_data[index * pixels_per_thread + j]]), 1);
 		}
 	}
 
-	/*__syncthreads();
-
-	// Copy shared data to device data
-	for(int j = 0; j < HISTOGRAM_SIZE; ++j)
-	{
-		histogram[j] += tmp_histogram[j];
-	}*/
 	*i = N;
 }
 
