@@ -28,7 +28,7 @@ void load_image(unsigned int *image_data)
 	char pixel[3];
 	char *data = (char *)header_data;
 
-	for (unsigned long i = 0L; i < NBR_OF_ELEMENTS; ++i)
+	for (unsigned int i = 0u; i < NBR_OF_ELEMENTS; ++i)
 	{
 		HEADER_PIXEL(data, pixel);
 		image_data[i] = (uint8_t)pixel[0] + (uint8_t)pixel[1] + (uint8_t)pixel[2];
@@ -39,7 +39,7 @@ void print_image(unsigned int *image_data)
 {
 	printf("Image printing:\n");
 
-	for (unsigned long i = 0L; i < NBR_OF_ELEMENTS; ++i)
+	for (unsigned i = 0u; i < NBR_OF_ELEMENTS; ++i)
 	{
 		printf("%u, ", image_data[i]);
 	}
@@ -47,7 +47,7 @@ void print_image(unsigned int *image_data)
 	printf("\n");
 }
 
-void print_histogram(unsigned long *histogram)
+void print_histogram(unsigned *histogram)
 {
 	if (!histogram)
 	{
@@ -61,27 +61,27 @@ void print_histogram(unsigned long *histogram)
 	{
 		if (0L != histogram[i])
 		{
-			printf("v: %u, a: %lu\n", i, histogram[i]);
+			printf("v: %u, a: %u\n", i, histogram[i]);
 		}
 	}
 
 	printf("\n");
 }
 
-void clear_histogram(unsigned long *histogram)
+void clear_histogram(unsigned *histogram)
 {
 	if (!histogram)
 	{
 		printf("Histogram has no values!");
 		return;
 	}
-	for (unsigned long i = 0L; i < HISTOGRAM_SIZE; ++i)
+	for (unsigned i = 0u; i < HISTOGRAM_SIZE; ++i)
 	{
-		histogram[i] = 0L;
+		histogram[i] = 0u;
 	}
 }
 
-int are_histograms_equal(unsigned long *array, unsigned long *array2)
+int are_histograms_equal(unsigned *array, unsigned *array2)
 {
 	for (unsigned int i = 0u; i < HISTOGRAM_SIZE; ++i)
 	{
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 	int N = nBlk * nThx;
 
 	size_t size_image = NBR_OF_ELEMENTS * sizeof(unsigned int);
-	size_t size_histogram = HISTOGRAM_SIZE * sizeof(unsigned long);
+	size_t size_histogram = HISTOGRAM_SIZE * sizeof(unsigned);
 
 	int pixels_per_thread = NBR_OF_ELEMENTS / (N - 1);
 	while (pixels_per_thread < 8)
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 	printf("%d pixels per thread and %d pixels as a reminder for the last one.\n",
 		   pixels_per_thread, last_thread_pixels);
 
-	unsigned long *histogram, *d_histogram, *histogram_result;
+	unsigned *histogram, *d_histogram, *histogram_result;
 	unsigned int *image_data, *d_image_data;
 	unsigned long *x = 0UL, *d_x;
 
@@ -155,9 +155,9 @@ int main(int argc, char **argv)
 	printf("Allocation of space for host copies\n");
 	image_data = (unsigned int *)malloc(size_image);
 	load_image(image_data);
-	histogram = (unsigned long *)malloc(size_histogram);
+	histogram = (unsigned *)malloc(size_histogram);
 	clear_histogram(histogram);
-	histogram_result = (unsigned long *)malloc(size_histogram);
+	histogram_result = (unsigned *)malloc(size_histogram);
 	clear_histogram(histogram_result);
 
 	x = (unsigned long *)malloc(sizeof(x));
@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 
 	// Lunch calculations() kernel on GPU with N threads
 	printf("Calculations\n");
-	calculations<<<nBlk, nThx>>>(d_image_data, (unsigned int *)d_histogram, d_x);
+	calculations<<<nBlk, nThx>>>(d_image_data, d_histogram, d_x);
 
 	// Copy result back to host
 	printf("Copy result to host\n");

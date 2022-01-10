@@ -7,7 +7,7 @@
 #include <string.h>
 
 
-//#define TEST
+#define TEST
 #ifdef TEST
 
 #include "../assets/test_image.h" // 2 048 pixels
