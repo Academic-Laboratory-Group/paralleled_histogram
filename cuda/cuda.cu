@@ -93,7 +93,7 @@ int are_histograms_equal(unsigned long *array, unsigned long *array2)
 	return 0;
 }
 
-__global__ void calculations(unsigned int *image_data, unsigned long *histogram, unsigned long *i)
+__global__ void calculations(unsigned int *image_data, unsigned int *histogram, unsigned long *i)
 {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	int N = blockDim.x * gridDim.x;
@@ -170,7 +170,7 @@ int main(int argc, char **argv)
 
 	// Lunch calculations() kernel on GPU with N threads
 	printf("Calculations\n");
-	calculations<<<nBlk, nThx>>>(d_image_data, d_histogram, d_x);
+	calculations<<<nBlk, nThx>>>(d_image_data, (unsigned int *)d_histogram, d_x);
 
 	// Copy result back to host
 	printf("Copy result to host\n");
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 	if (are_histograms_equal(histogram, histogram_result) != 0)
 	{
 		printf("Histograms are not equal!\n");
-		//print_histogram(histogram);
+		print_histogram(histogram);
 		//print_histogram(histogram_result);
 	}
 	else
